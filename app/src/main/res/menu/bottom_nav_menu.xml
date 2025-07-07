@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/nav_photos"
+        android:icon="@drawable/ic_photos" />
+
+    <item
+        android:id="@+id/nav_albums"
+        android:icon="@drawable/ic_album" />
+
+    <item
+        android:id="@+id/nav_favourites"
+        android:icon="@drawable/ic_heart" />
+
+        <item
+    android:id="@+id/nav_search"
+    android:icon="@drawable/ic_search" />
+
+</menu>

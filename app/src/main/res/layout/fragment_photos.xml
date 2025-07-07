@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Main content container -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- Header with title and select -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="6dp"
+            android:paddingBottom="16dp">
+
+            <TextView
+                android:id="@+id/titleView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:fontFamily="@font/inter_bold"
+                android:text="All Photos"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/selectView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:fontFamily="@font/inter_semibold"
+                android:paddingEnd="14dp"
+                android:text="Select"
+                android:textColor="#007AFF"
+                android:textSize="16sp" />
+        </RelativeLayout>
+
+        <!-- RecyclerView -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/photosRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="true"
+            android:scrollbars="none"/>
+    </LinearLayout>
+
+
+    <!-- Floating FilterBar container -->
+    <LinearLayout
+        android:id="@+id/filterContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="40dp"
+        android:layout_marginBottom="8dp"
+        android:background="@android:color/transparent"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:padding="8dp">
+
+        <FrameLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_filter_bar">
+
+            <!-- The animated blue pill -->
+            <View
+                android:id="@+id/selectedBackground"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_gravity="center_vertical"
+                android:layout_margin="2dp"
+                android:background="@drawable/bg_filter_selected"
+                android:visibility="invisible" />
+
+            <!-- The filter buttons over the pill -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btnAll"
+                    style="@style/FilterButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:text="All Photos" />
+
+                <Button
+                    android:id="@+id/btnDays"
+                    style="@style/FilterButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:text="Days" />
+
+                <Button
+                    android:id="@+id/btnMonths"
+                    style="@style/FilterButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:text="Months" />
+
+                <Button
+                    android:id="@+id/btnYears"
+                    style="@style/FilterButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:text="Years" />
+
+            </LinearLayout>
+        </FrameLayout>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tvSortDate"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="130dp"
+        android:fontFamily="@font/inter_semibold"
+        android:text="Sorted by: All Photos"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="14sp"
+        android:visibility="invisible" />
+
+</FrameLayout>

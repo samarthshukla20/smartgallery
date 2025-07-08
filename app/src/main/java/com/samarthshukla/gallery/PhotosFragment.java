@@ -46,7 +46,7 @@ public class PhotosFragment extends Fragment {
     private Button btnAll, btnDays, btnMonths, btnYears;
     private Button selectedButton;
     private TextView tvSortDate;
-    private View selectedBackground; // This will be your animated pill
+    private View selectedBackground;
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -117,21 +117,27 @@ public class PhotosFragment extends Fragment {
     }
 
     private void loadMedia() {
-        mediaItems.clear();
-        mediaItems.addAll(fetchMedia(MediaStore.Images.Media.EXTERNAL_CONTENT_URI));
-        mediaItems.addAll(fetchMedia(MediaStore.Video.Media.EXTERNAL_CONTENT_URI));
+        new Thread(() -> {
+            List<MediaItem> allItems = new ArrayList<>();
 
-        Collections.sort(mediaItems, (a, b) -> Long.compare(b.getDateTaken(), a.getDateTaken()));
+            allItems.addAll(fetchMedia(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, false));
+            allItems.addAll(fetchMedia(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, true));
 
-        buildGroupedList("ALL");
+            // Sort by DATE_ADDED descending
+            Collections.sort(allItems, (a, b) -> Long.compare(b.getDateAdded(), a.getDateAdded()));
+
+            mediaItems.clear();
+            mediaItems.addAll(allItems);
+
+            requireActivity().runOnUiThread(() -> buildGroupedList("ALL"));
+        }).start();
     }
 
-    private List<MediaItem> fetchMedia(Uri collection) {
+    private List<MediaItem> fetchMedia(Uri collection, boolean isVideo) {
         List<MediaItem> items = new ArrayList<>();
 
         String[] projection = {
                 MediaStore.Files.FileColumns._ID,
-                MediaStore.Files.FileColumns.DATE_TAKEN,
                 MediaStore.Files.FileColumns.DATE_ADDED
         };
 
@@ -144,17 +150,15 @@ public class PhotosFragment extends Fragment {
 
             if (cursor != null) {
                 int idCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID);
-                int dateTakenCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_TAKEN);
                 int dateAddedCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_ADDED);
 
                 while (cursor.moveToNext()) {
                     long id = cursor.getLong(idCol);
-                    long dateTaken = cursor.getLong(dateTakenCol);
                     long dateAdded = cursor.getLong(dateAddedCol);
                     Uri contentUri = ContentUris.withAppendedId(collection, id);
 
-                    boolean isVideo = collection.equals(MediaStore.Video.Media.EXTERNAL_CONTENT_URI);
-                    items.add(new MediaItem(contentUri, isVideo, dateTaken, dateAdded));
+                    // Use dateAdded for both sorting and grouping
+                    items.add(new MediaItem(contentUri, isVideo, dateAdded * 1000L, dateAdded * 1000L));
                 }
             }
         }
@@ -164,12 +168,11 @@ public class PhotosFragment extends Fragment {
 
     private void buildGroupedList(String mode) {
         groupedItems.clear();
-
         Map<String, List<MediaItem>> groupedMap = new LinkedHashMap<>();
 
         for (MediaItem item : mediaItems) {
             Calendar cal = Calendar.getInstance();
-            cal.setTimeInMillis(item.getDateTaken());
+            cal.setTimeInMillis(item.getDateAdded());
 
             String key;
             switch (mode) {
@@ -186,21 +189,14 @@ public class PhotosFragment extends Fragment {
                     key = "All Photos";
             }
 
-            if (!groupedMap.containsKey(key)) {
-                groupedMap.put(key, new ArrayList<>());
-            }
-            groupedMap.get(key).add(item);
+            groupedMap.computeIfAbsent(key, k -> new ArrayList<>()).add(item);
         }
 
         for (Map.Entry<String, List<MediaItem>> entry : groupedMap.entrySet()) {
-            String header = entry.getKey();
-            List<MediaItem> itemsInGroup = entry.getValue();
-
-            if (!"All Photos".equals(header)) {
-                groupedItems.add(new MediaGroupedItem(MediaGroupedItem.TYPE_HEADER, header));
+            if (!entry.getKey().equals("All Photos")) {
+                groupedItems.add(new MediaGroupedItem(MediaGroupedItem.TYPE_HEADER, entry.getKey()));
             }
-
-            for (MediaItem item : itemsInGroup) {
+            for (MediaItem item : entry.getValue()) {
                 groupedItems.add(new MediaGroupedItem(MediaGroupedItem.TYPE_MEDIA, item));
             }
         }

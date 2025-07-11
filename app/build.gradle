@@ -1,27 +1,41 @@
-
 plugins {
     id 'com.android.application'
-    
+}
+
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 
 android {
     namespace 'com.samarthshukla.gallery'
     compileSdk 36
-    
+
     defaultConfig {
         applicationId "com.samarthshukla.gallery"
         minSdk 25
         targetSdk 34
         versionCode 1
         versionName "1.0"
-        
-        vectorDrawables { 
+
+        vectorDrawables {
             useSupportLibrary true
+        }
+    }
+
+    signingConfigs {
+        release {
+            storeFile file(keystoreProperties['storeFile'])
+            storePassword keystoreProperties['storePassword']
+            keyAlias keystoreProperties['keyAlias']
+            keyPassword keystoreProperties['keyPassword']
         }
     }
 
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
@@ -34,9 +48,7 @@ android {
 
     buildFeatures {
         viewBinding true
-        
     }
-    
 }
 
 dependencies {
@@ -54,8 +66,7 @@ dependencies {
     implementation 'androidx.activity:activity:1.10.1'
     annotationProcessor 'com.github.bumptech.glide:compiler:4.16.0'
     implementation 'io.github.chrisbanes:photoview:2.3.0'
+    implementation 'com.jsibbold:zoomage:1.3.1'
     implementation 'androidx.media3:media3-exoplayer:1.7.1'
     implementation 'androidx.media3:media3-ui:1.7.1'
-    implementation 'jp.wasabeef:blurry:4.0.0'
-    implementation 'com.github.Dimezis:BlurView:version-2.0.3'
 }

@@ -5,6 +5,7 @@ import android.content.ContentUris;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Color;
+import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -33,26 +34,27 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import android.graphics.Rect;
-
 public class PhotosFragment extends Fragment {
 
     private final List<MediaItem> mediaItems = new ArrayList<>();
     private final List<MediaGroupedItem> groupedItems = new ArrayList<>();
+
     private RecyclerView recyclerView;
     private PhotoAdapter adapter;
-    private ActivityResultLauncher<String> permissionLauncher;
-    private ActivityResultLauncher<String[]> requestMultiplePermissions;
+
     private Button btnAll, btnDays, btnMonths, btnYears;
-    private Button selectedButton;
-    private TextView tvSortDate;
     private View selectedBackground;
+    private TextView tvSortDate;
+
+    private ActivityResultLauncher<String> singlePermissionLauncher;
+    private ActivityResultLauncher<String[]> multiplePermissionLauncher;
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_photos, container, false);
 
-        TextView selectView = view.findViewById(R.id.selectView);
+        // UI Setup
+        recyclerView = view.findViewById(R.id.photosRecyclerView);
         btnAll = view.findViewById(R.id.btnAll);
         btnDays = view.findViewById(R.id.btnDays);
         btnMonths = view.findViewById(R.id.btnMonths);
@@ -60,130 +62,129 @@ public class PhotosFragment extends Fragment {
         tvSortDate = view.findViewById(R.id.tvSortDate);
         selectedBackground = view.findViewById(R.id.selectedBackground);
 
-        selectView.setOnClickListener(v -> Toast.makeText(requireContext(), "Select clicked", Toast.LENGTH_SHORT).show());
-
-        recyclerView = view.findViewById(R.id.photosRecyclerView);
-        GridLayoutManager gridLayoutManager = new GridLayoutManager(requireContext(), 3);
-        recyclerView.setLayoutManager(gridLayoutManager);
-
-        adapter = new PhotoAdapter(requireContext(), groupedItems);
-        gridLayoutManager.setSpanSizeLookup(adapter.getSpanSizeLookup());
+        // Set adapter
+        adapter = PhotoAdapter.forGrid(requireContext(), groupedItems);
+        GridLayoutManager layoutManager = new GridLayoutManager(requireContext(), 3);
+        layoutManager.setSpanSizeLookup(adapter.spanLookup());
+        recyclerView.setLayoutManager(layoutManager);
         recyclerView.setAdapter(adapter);
 
-        setupPermissions();
+        setupPermissionLaunchers();
         setupFilterButtons();
-
-        return view;
-    }
-
-    private void setupPermissions() {
-        permissionLauncher = registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
-            if (isGranted) loadMedia();
-            else Toast.makeText(requireContext(), "Permission denied", Toast.LENGTH_SHORT).show();
-        });
-
-        requestMultiplePermissions = registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), result -> {
-            boolean granted = result.getOrDefault(Manifest.permission.READ_MEDIA_IMAGES, false)
-                    && result.getOrDefault(Manifest.permission.READ_MEDIA_VIDEO, false);
-            if (granted) loadMedia();
-            else Toast.makeText(requireContext(), "Permission denied", Toast.LENGTH_SHORT).show();
-        });
 
         if (hasPermission()) {
             loadMedia();
         } else {
-            requestPermission();
+            requestPermissions();
         }
+
+        return view;
+    }
+
+    private void setupPermissionLaunchers() {
+        singlePermissionLauncher = registerForActivityResult(new ActivityResultContracts.RequestPermission(),
+                isGranted -> {
+                    if (isGranted)
+                        loadMedia();
+                    else
+                        Toast.makeText(requireContext(), "Permission denied", Toast.LENGTH_SHORT).show();
+                });
+
+        multiplePermissionLauncher = registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(),
+                result -> {
+                    boolean granted = result.getOrDefault(Manifest.permission.READ_MEDIA_IMAGES, false)
+                            && result.getOrDefault(Manifest.permission.READ_MEDIA_VIDEO, false);
+                    if (granted)
+                        loadMedia();
+                    else
+                        Toast.makeText(requireContext(), "Permission denied", Toast.LENGTH_SHORT).show();
+                });
     }
 
     private boolean hasPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            return ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED
-                    && ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED;
+            return ContextCompat.checkSelfPermission(requireContext(),
+                    Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED
+                    && ContextCompat.checkSelfPermission(requireContext(),
+                            Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED;
         } else {
-            return ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+            return ContextCompat.checkSelfPermission(requireContext(),
+                    Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
         }
     }
 
-    private void requestPermission() {
+    private void requestPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            requestMultiplePermissions.launch(new String[]{
+            multiplePermissionLauncher.launch(new String[] {
                     Manifest.permission.READ_MEDIA_IMAGES,
                     Manifest.permission.READ_MEDIA_VIDEO
             });
         } else {
-            permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE);
+            singlePermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE);
         }
     }
 
     private void loadMedia() {
         new Thread(() -> {
-            List<MediaItem> allItems = new ArrayList<>();
+            List<MediaItem> items = new ArrayList<>();
+            items.addAll(fetchMedia(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, false));
+            items.addAll(fetchMedia(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, true));
 
-            allItems.addAll(fetchMedia(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, false));
-            allItems.addAll(fetchMedia(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, true));
-
-            // Sort by DATE_ADDED descending
-            Collections.sort(allItems, (a, b) -> Long.compare(b.getDateAdded(), a.getDateAdded()));
+            // Sort by date descending
+            Collections.sort(items, (a, b) -> Long.compare(b.getDateAdded(), a.getDateAdded()));
 
             mediaItems.clear();
-            mediaItems.addAll(allItems);
+            mediaItems.addAll(items);
 
             requireActivity().runOnUiThread(() -> buildGroupedList("ALL"));
         }).start();
     }
 
-    private List<MediaItem> fetchMedia(Uri collection, boolean isVideo) {
-        List<MediaItem> items = new ArrayList<>();
-
+    private List<MediaItem> fetchMedia(Uri uri, boolean isVideo) {
+        List<MediaItem> list = new ArrayList<>();
         String[] projection = {
                 MediaStore.Files.FileColumns._ID,
                 MediaStore.Files.FileColumns.DATE_ADDED
         };
-
         String selection = MediaStore.MediaColumns.RELATIVE_PATH + " LIKE ?";
-        String[] selectionArgs = new String[]{"%DCIM/Camera%"};
-        String sortOrder = MediaStore.MediaColumns.DATE_ADDED + " DESC";
+        String[] args = new String[] { "%DCIM/Camera%" };
 
-        try (Cursor cursor = requireContext().getContentResolver().query(
-                collection, projection, selection, selectionArgs, sortOrder)) {
-
+        try (Cursor cursor = requireContext().getContentResolver().query(uri, projection, selection, args, null)) {
             if (cursor != null) {
-                int idCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID);
-                int dateAddedCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_ADDED);
+                int idIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID);
+                int dateIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_ADDED);
 
                 while (cursor.moveToNext()) {
-                    long id = cursor.getLong(idCol);
-                    long dateAdded = cursor.getLong(dateAddedCol);
-                    Uri contentUri = ContentUris.withAppendedId(collection, id);
+                    long id = cursor.getLong(idIndex);
+                    long dateAdded = cursor.getLong(dateIndex) * 1000L;
+                    Uri contentUri = ContentUris.withAppendedId(uri, id);
 
-                    // Use dateAdded for both sorting and grouping
-                    items.add(new MediaItem(contentUri, isVideo, dateAdded * 1000L, dateAdded * 1000L));
+                    list.add(new MediaItem(contentUri, isVideo, dateAdded, dateAdded));
                 }
             }
         }
 
-        return items;
+        return list;
     }
 
     private void buildGroupedList(String mode) {
         groupedItems.clear();
-        Map<String, List<MediaItem>> groupedMap = new LinkedHashMap<>();
 
+        Map<String, List<MediaItem>> groupedMap = new LinkedHashMap<>();
         for (MediaItem item : mediaItems) {
-            Calendar cal = Calendar.getInstance();
-            cal.setTimeInMillis(item.getDateAdded());
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTimeInMillis(item.getDateAdded());
 
             String key;
             switch (mode) {
                 case "DAY":
-                    key = DateFormat.format("MMMM dd, yyyy", cal).toString();
+                    key = DateFormat.format("MMMM dd, yyyy", calendar).toString();
                     break;
                 case "MONTH":
-                    key = DateFormat.format("MMMM yyyy", cal).toString();
+                    key = DateFormat.format("MMMM yyyy", calendar).toString();
                     break;
                 case "YEAR":
-                    key = String.valueOf(cal.get(Calendar.YEAR));
+                    key = String.valueOf(calendar.get(Calendar.YEAR));
                     break;
                 default:
                     key = "All Photos";
@@ -207,57 +208,52 @@ public class PhotosFragment extends Fragment {
     private void setupFilterButtons() {
         List<Button> allButtons = Arrays.asList(btnAll, btnDays, btnMonths, btnYears);
 
-        View.OnClickListener listener = v -> {
-            Button clickedButton = (Button) v;
-            updateSortSelection(clickedButton);
+        View.OnClickListener clickListener = v -> {
+            Button btn = (Button) v;
+            updateSelectionUI(btn);
 
-            if (v == btnAll) {
+            if (btn == btnAll) {
                 tvSortDate.setText("All Photos");
                 buildGroupedList("ALL");
-            } else if (v == btnDays) {
+            } else if (btn == btnDays) {
                 tvSortDate.setText("Grouped by Day");
                 buildGroupedList("DAY");
-            } else if (v == btnMonths) {
+            } else if (btn == btnMonths) {
                 tvSortDate.setText("Grouped by Month");
                 buildGroupedList("MONTH");
-            } else if (v == btnYears) {
+            } else if (btn == btnYears) {
                 tvSortDate.setText("Grouped by Year");
                 buildGroupedList("YEAR");
             }
         };
 
-        btnAll.setOnClickListener(listener);
-        btnDays.setOnClickListener(listener);
-        btnMonths.setOnClickListener(listener);
-        btnYears.setOnClickListener(listener);
-
-        btnAll.performClick();
+        for (Button b : allButtons)
+            b.setOnClickListener(clickListener);
+        btnAll.performClick(); // Default
     }
 
-    private void updateSortSelection(Button selected) {
-        selectedButton = selected;
-
+    private void updateSelectionUI(Button selected) {
         selectedBackground.setVisibility(View.VISIBLE);
         selectedBackground.post(() -> {
             Rect rect = new Rect();
             selected.getGlobalVisibleRect(rect);
+
             Rect parentRect = new Rect();
             ((View) selected.getParent()).getGlobalVisibleRect(parentRect);
 
-            float translationX = rect.left - parentRect.left;
-            selectedBackground.animate()
-                    .x(translationX)
-                    .setDuration(200)
-                    .start();
+            float x = rect.left - parentRect.left;
+
+            selectedBackground.animate().x(x).setDuration(200).start();
 
             ViewGroup.LayoutParams params = selectedBackground.getLayoutParams();
             params.width = selected.getWidth();
             selectedBackground.setLayoutParams(params);
         });
 
-        Button[] buttons = {btnAll, btnDays, btnMonths, btnYears};
-        for (Button b : buttons) {
-            b.setTextColor(b == selected ? Color.BLACK : Color.BLACK);
-        }
+        btnAll.setTextColor(Color.BLACK);
+        btnDays.setTextColor(Color.BLACK);
+        btnMonths.setTextColor(Color.BLACK);
+        btnYears.setTextColor(Color.BLACK);
+        selected.setTextColor(Color.BLACK);
     }
 }

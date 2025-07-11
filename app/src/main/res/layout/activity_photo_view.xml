@@ -10,7 +10,7 @@
         android:id="@+id/dimBackground"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#000000"
+        android:background="?attr/colorSurface"
         android:alpha="1.0" />
 
     <!-- ViewPager for swiping through full-size images -->

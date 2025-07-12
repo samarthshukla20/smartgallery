@@ -14,52 +14,62 @@ import com.bumptech.glide.Glide;
 
 import java.util.List;
 
-public class FolderAdapter extends RecyclerView.Adapter<FolderAdapter.FolderViewHolder> {
+public class FolderAdapter extends RecyclerView.Adapter<FolderAdapter.ViewHolder> {
+
+    public interface OnFolderClickListener {
+        void onFolderClick(ImageFolder folder);
+    }
 
     private final Context context;
-    private final List<ImageFolder> folderList;
+    private final List<ImageFolder> folders;
+    private final OnFolderClickListener clickListener;
 
-    public FolderAdapter(Context context, List<ImageFolder> folderList) {
+    public FolderAdapter(Context context, List<ImageFolder> folders, OnFolderClickListener listener) {
         this.context = context;
-        this.folderList = folderList;
+        this.folders = folders;
+        this.clickListener = listener;
     }
 
     @NonNull
     @Override
-    public FolderViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(context).inflate(R.layout.item_folder, parent, false);
-        return new FolderViewHolder(view);
+        return new ViewHolder(view);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull FolderViewHolder holder, int position) {
-        ImageFolder folder = folderList.get(position);
+    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+        ImageFolder folder = folders.get(position);
 
         holder.folderName.setText(folder.getFolderName());
-        holder.imageCount.setText(folder.getImageCount() + " photos");
+        holder.itemCount.setText(folder.getImageCount() + " items");
 
         Glide.with(context)
                 .load(folder.getFirstImageUri())
                 .centerCrop()
-                .into(holder.folderImage);
+                .into(holder.thumbnail);
 
-        // You can add click listeners here if you want to open folder details
+        holder.itemView.setOnClickListener(v -> {
+            if (clickListener != null) {
+                clickListener.onFolderClick(folder);
+            }
+        });
     }
 
     @Override
     public int getItemCount() {
-        return folderList.size();
+        return folders.size();
     }
 
-    static class FolderViewHolder extends RecyclerView.ViewHolder {
-        ImageView folderImage;
-        TextView folderName, imageCount;
+    static class ViewHolder extends RecyclerView.ViewHolder {
+        ImageView thumbnail;
+        TextView folderName, itemCount;
 
-        public FolderViewHolder(@NonNull View itemView) {
+        ViewHolder(@NonNull View itemView) {
             super(itemView);
-            folderImage = itemView.findViewById(R.id.folderImage);
+            thumbnail = itemView.findViewById(R.id.folderImage);
             folderName = itemView.findViewById(R.id.folderName);
-            imageCount = itemView.findViewById(R.id.imageCount);
+            itemCount = itemView.findViewById(R.id.imageCount);
         }
     }
 }

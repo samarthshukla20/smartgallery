@@ -25,34 +25,29 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
-import com.bumptech.glide.request.target.CustomTarget;
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions;
-import com.bumptech.glide.request.transition.DrawableCrossFadeFactory;
-import com.github.chrisbanes.photoview.PhotoView;
+import com.bumptech.glide.request.target.CustomTarget;
+import com.bumptech.glide.request.transition.Transition;
+import com.jsibbold.zoomage.ZoomageView;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/** Single adapter – GRID & VIEWER. */
 public class PhotoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
-    /* ---------- modes ---------- */
     public enum Mode {
         GRID, VIEWER
     }
 
-    /* ---------- view-type ids ---------- */
     public static final int TYPE_HEADER = MediaGroupedItem.TYPE_HEADER;
     public static final int TYPE_MEDIA = MediaGroupedItem.TYPE_MEDIA;
 
-    /* ---------- members ---------- */
     private final Mode mode;
     private final Context context;
-    private final List<MediaGroupedItem> grouped; // grid
-    private final List<Uri> viewerUris; // viewer
-    private final int fullW, fullH; // 3× screen
+    private final List<MediaGroupedItem> grouped;
+    private final List<Uri> viewerUris;
+    private final int fullW, fullH;
 
-    /* ---------- factories ---------- */
     public static PhotoAdapter forGrid(Context ctx, List<MediaGroupedItem> items) {
         return new PhotoAdapter(ctx, Mode.GRID, items, null);
     }
@@ -61,10 +56,9 @@ public class PhotoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         return new PhotoAdapter(ctx, Mode.VIEWER, null, uris);
     }
 
-    /* ---------- ctor (private) ---------- */
     private PhotoAdapter(Context ctx, Mode mode,
-            List<MediaGroupedItem> gridList,
-            List<Uri> viewerList) {
+                         List<MediaGroupedItem> gridList,
+                         List<Uri> viewerList) {
 
         this.context = ctx;
         this.mode = mode;
@@ -76,7 +70,6 @@ public class PhotoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         fullH = dm.heightPixels * 2;
     }
 
-    /* ---------- basics ---------- */
     @Override
     public int getItemCount() {
         return mode == Mode.GRID ? grouped.size() : viewerUris.size();
@@ -87,7 +80,6 @@ public class PhotoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         return mode == Mode.GRID ? grouped.get(pos).getType() : TYPE_MEDIA;
     }
 
-    /* ---------- create holders ---------- */
     @NonNull
     @Override
     public RecyclerView.ViewHolder onCreateViewHolder(
@@ -103,7 +95,6 @@ public class PhotoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         return new ViewerHolder(inf.inflate(R.layout.item_photo_viewer_page, parent, false));
     }
 
-    /* ---------- bind ---------- */
     @Override
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder h, int pos) {
         if (mode == Mode.GRID) {
@@ -118,11 +109,9 @@ public class PhotoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         }
     }
 
-    /* ===== GRID ===== */
     private void bindGrid(GridHolder holder, MediaItem media, int pos) {
         Uri uri = media.getUri();
 
-        // 700-px thumb into cell
         Glide.with(context)
                 .load(uri)
                 .override(700, 700)
@@ -130,7 +119,6 @@ public class PhotoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
                 .diskCacheStrategy(DiskCacheStrategy.ALL)
                 .into(holder.imageView);
 
-        // Warm-up cache for instant viewer preview
         Glide.with(context)
                 .load(uri)
                 .override(700, 700)
@@ -153,17 +141,13 @@ public class PhotoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         });
     }
 
-    /* ===== VIEWER ===== */
     private void bindViewer(ViewerHolder vh, Uri uri) {
-
-        // 1) 700px request (will be instant from cache)
         RequestBuilder<Drawable> thumb = Glide.with(context)
                 .load(uri)
                 .override(700, 700)
                 .dontTransform()
                 .diskCacheStrategy(DiskCacheStrategy.ALL);
 
-        // 2) Full-res with cross-fade & scaling fix
         Glide.with(context)
                 .load(uri)
                 .override(fullW, fullH)
@@ -173,11 +157,10 @@ public class PhotoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
                 .into(new CustomTarget<Drawable>() {
                     @Override
                     public void onResourceReady(@NonNull Drawable res,
-                            @androidx.annotation.Nullable com.bumptech.glide.request.transition.Transition<? super Drawable> trans) {
+                                                @androidx.annotation.Nullable Transition<? super Drawable> trans) {
 
-                        vh.photoView.setImageDrawable(res);
-                        vh.photoView.setScale(1f, true); // reset any zoom
-                        vh.photoView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+                        vh.zoomageView.setImageDrawable(res);
+                        vh.zoomageView.setScaleType(ImageView.ScaleType.FIT_CENTER);
                     }
 
                     @Override
@@ -185,8 +168,6 @@ public class PhotoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
                     }
                 });
     }
-
-    /* ---------- helpers ---------- */
 
     private void openVideo(Uri uri) {
         SharedPreferences p = PreferenceManager.getDefaultSharedPreferences(context);
@@ -235,7 +216,6 @@ public class PhotoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         context.startActivity(it, opts.toBundle());
     }
 
-    /* ---------- span-helper ---------- */
     public GridLayoutManager.SpanSizeLookup spanLookup() {
         if (mode != Mode.GRID)
             return null;
@@ -247,7 +227,6 @@ public class PhotoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         };
     }
 
-    /* ---------- view-holders ---------- */
     static class HeaderHolder extends RecyclerView.ViewHolder {
         TextView headerText;
 
@@ -270,11 +249,11 @@ public class PhotoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
     }
 
     static class ViewerHolder extends RecyclerView.ViewHolder {
-        PhotoView photoView;
+        ZoomageView zoomageView;
 
         ViewerHolder(@NonNull View v) {
             super(v);
-            photoView = v.findViewById(R.id.photoView);
+            zoomageView = v.findViewById(R.id.zoomImageView);
         }
     }
 }

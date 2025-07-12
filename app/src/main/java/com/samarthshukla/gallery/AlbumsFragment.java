@@ -1,6 +1,7 @@
 package com.samarthshukla.gallery;
 
 import android.content.ContentUris;
+import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
@@ -34,7 +35,12 @@ public class AlbumsFragment extends Fragment {
         albumRecyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
 
         folderList = loadImageFolders();
-        folderAdapter = new FolderAdapter(requireContext(), folderList);
+        folderAdapter = new FolderAdapter(requireContext(), folderList, folder -> {
+            Intent intent = new Intent(requireContext(), AlbumsActivity.class);
+            intent.putExtra("bucketName", folder.getFolderName());
+            startActivity(intent);
+        });
+
         albumRecyclerView.setAdapter(folderAdapter);
 
         return view;
@@ -42,35 +48,47 @@ public class AlbumsFragment extends Fragment {
 
     private List<ImageFolder> loadImageFolders() {
         Map<String, ImageFolder> folderMap = new LinkedHashMap<>();
-        Uri collection = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
+        loadFromMediaStore(folderMap, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+        loadFromMediaStore(folderMap, MediaStore.Video.Media.EXTERNAL_CONTENT_URI);
+        return new ArrayList<>(folderMap.values());
+    }
 
-        String[] projection = {MediaStore.Images.Media._ID, MediaStore.Images.Media.BUCKET_DISPLAY_NAME};
+    private void loadFromMediaStore(Map<String, ImageFolder> folderMap, Uri collectionUri) {
+        String[] projection = {
+                MediaStore.MediaColumns._ID,
+                MediaStore.Images.Media.BUCKET_DISPLAY_NAME
+        };
 
-        String selection = MediaStore.Images.Media.MIME_TYPE + "=? OR " + MediaStore.Images.Media.MIME_TYPE + "=?";
-        String[] selectionArgs = {"image/jpeg", "image/png"};
-        String sortOrder = MediaStore.Images.Media.DATE_TAKEN + " DESC";
+        String sortOrder = MediaStore.MediaColumns.DATE_ADDED + " DESC";
 
-        try (Cursor cursor = requireContext().getContentResolver().query(collection, projection, selection, selectionArgs, sortOrder)) {
+        try (Cursor cursor = requireContext().getContentResolver().query(
+                collectionUri, projection, null, null, sortOrder
+        )) {
             if (cursor != null) {
-                int idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID);
+                int idColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID);
                 int bucketColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_DISPLAY_NAME);
 
                 while (cursor.moveToNext()) {
                     long id = cursor.getLong(idColumn);
                     String bucketName = cursor.getString(bucketColumn);
-
-                    Uri contentUri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id);
+                    Uri contentUri = ContentUris.withAppendedId(collectionUri, id);
 
                     if (folderMap.containsKey(bucketName)) {
                         ImageFolder folder = folderMap.get(bucketName);
-                        folderMap.put(bucketName, new ImageFolder(folder.getFolderName(), folder.getFirstImageUri(), folder.getImageCount() + 1));
+                        folderMap.put(bucketName, new ImageFolder(
+                                folder.getFolderName(),
+                                folder.getFirstImageUri(), // Keep existing thumbnail
+                                folder.getImageCount() + 1
+                        ));
                     } else {
-                        folderMap.put(bucketName, new ImageFolder(bucketName, contentUri, 1));
+                        folderMap.put(bucketName, new ImageFolder(
+                                bucketName,
+                                contentUri,
+                                1
+                        ));
                     }
                 }
             }
         }
-
-        return new ArrayList<>(folderMap.values());
     }
 }

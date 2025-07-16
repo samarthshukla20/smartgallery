@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/transparent">
+
+    <!-- Dimmed/blurred background overlay -->
+    <View
+        android:id="@+id/fab_dim_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#80000000"
+        android:visibility="gone" />
+
+    <!-- Floating action box -->
+    <LinearLayout
+        android:id="@+id/fab_action_box"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:orientation="horizontal"
+        android:background="@drawable/bg_fab_action_box"
+        android:elevation="8dp"
+        android:padding="16dp"
+        android:layout_margin="32dp"
+        android:gravity="center"
+        android:visibility="gone">
+
+        <ImageButton
+            android:id="@+id/fab_share"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:background="@drawable/bg_fab_circle"
+            android:src="@drawable/lucide_share"
+            android:contentDescription="Share"
+            android:padding="12dp"
+            android:tint="#000" />
+
+        <Space
+            android:layout_width="24dp"
+            android:layout_height="0dp" />
+
+        <ImageButton
+            android:id="@+id/fab_delete"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:background="@drawable/bg_fab_circle"
+            android:src="@drawable/lucide_trash"
+            android:contentDescription="Delete"
+            android:padding="12dp"
+            android:tint="#000" />
+    </LinearLayout>
+
+</FrameLayout> 

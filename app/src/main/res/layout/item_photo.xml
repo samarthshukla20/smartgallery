@@ -27,4 +27,22 @@
         android:src="@drawable/ic_play_circle"
         android:visibility="gone" />
 
+    <!-- Selection overlay -->
+    <View
+        android:id="@+id/selectionOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="120dp"
+        android:background="@drawable/bg_selection_overlay"
+        android:visibility="gone" />
+
+    <!-- Check icon for selection -->
+    <ImageView
+        android:id="@+id/checkIcon"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_gravity="top|end"
+        android:layout_margin="8dp"
+        android:src="@drawable/ic_check_circle"
+        android:visibility="gone" />
+
 </FrameLayout>

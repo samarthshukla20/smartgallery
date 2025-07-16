@@ -11,7 +11,8 @@
 
         <!-- Header with title and select -->
         <RelativeLayout
-            android:layout_width="wrap_content"
+            android:id="@+id/headerContainer"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:paddingTop="6dp"
             android:paddingBottom="16dp">
@@ -24,7 +25,7 @@
                 android:fontFamily="@font/inter_bold"
                 android:text="All Photos"
                 android:textColor="?attr/colorOnSurface"
-                android:textSize="15dp" />
+                android:textSize="16sp" />
 
             <TextView
                 android:id="@+id/selectView"
@@ -129,5 +130,18 @@
         android:textColor="?attr/colorOnSurface"
         android:textSize="14sp"
         android:visibility="invisible" />
+
+    <!-- Google Photos-style Bottom Action Bar -->
+    <include
+        android:id="@+id/bottomActionBar"
+        layout="@layout/bottom_action_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:visibility="gone" />
+
+    <include
+        layout="@layout/floating_action_box"
+        android:id="@+id/floatingActionBoxInclude" />
 
 </FrameLayout>

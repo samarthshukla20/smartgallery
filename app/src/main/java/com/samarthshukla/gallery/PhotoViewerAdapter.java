@@ -11,7 +11,7 @@ import androidx.core.view.ViewCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
-import com.jsibbold.zoomage.ZoomageView;
+import com.github.chrisbanes.photoview.PhotoView;
 
 import java.util.List;
 
@@ -39,11 +39,11 @@ public class PhotoViewerAdapter extends RecyclerView.Adapter<PhotoViewerAdapter.
         // Load image into PhotoView
         Glide.with(context)
                 .load(uri)
-                .into(holder.zoomageView);
+                .into(holder.photoView);
 
         // Ensure the transition name matches the one set in PhotoAdapter
         String transitionName = "photo_" + position;
-        ViewCompat.setTransitionName(holder.zoomageView, transitionName);
+        ViewCompat.setTransitionName(holder.photoView, transitionName);
     }
 
     @Override
@@ -52,11 +52,11 @@ public class PhotoViewerAdapter extends RecyclerView.Adapter<PhotoViewerAdapter.
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
-        public final ZoomageView zoomageView;
+        public final PhotoView photoView;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
-            zoomageView = itemView.findViewById(R.id.zoomImageView);
+            photoView = itemView.findViewById(R.id.photoView);
         }
     }
 }

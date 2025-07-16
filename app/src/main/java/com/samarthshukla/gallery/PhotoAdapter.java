@@ -25,29 +25,39 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestBuilder;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
-import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions;
 import com.bumptech.glide.request.target.CustomTarget;
-import com.bumptech.glide.request.transition.Transition;
-import com.jsibbold.zoomage.ZoomageView;
+import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions;
+import com.bumptech.glide.request.transition.DrawableCrossFadeFactory;
+import com.github.chrisbanes.photoview.PhotoView;
 
 import java.util.ArrayList;
 import java.util.List;
 
+/** Single adapter – GRID & VIEWER. */
 public class PhotoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
+    /* ---------- modes ---------- */
     public enum Mode {
         GRID, VIEWER
     }
 
+    /* ---------- view-type ids ---------- */
     public static final int TYPE_HEADER = MediaGroupedItem.TYPE_HEADER;
     public static final int TYPE_MEDIA = MediaGroupedItem.TYPE_MEDIA;
 
+    /* ---------- members ---------- */
     private final Mode mode;
     private final Context context;
-    private final List<MediaGroupedItem> grouped;
-    private final List<Uri> viewerUris;
-    private final int fullW, fullH;
+    private final List<MediaGroupedItem> grouped; // grid
+    private final List<Uri> viewerUris; // viewer
+    private final int fullW, fullH; // 3× screen
+    
+    // Selection functionality
+    private final List<Uri> selectedItems = new ArrayList<>();
+    private OnSelectionChangedListener selectionListener;
+    private boolean isSelectionMode = false;
 
+    /* ---------- factories ---------- */
     public static PhotoAdapter forGrid(Context ctx, List<MediaGroupedItem> items) {
         return new PhotoAdapter(ctx, Mode.GRID, items, null);
     }
@@ -56,9 +66,10 @@ public class PhotoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         return new PhotoAdapter(ctx, Mode.VIEWER, null, uris);
     }
 
+    /* ---------- ctor (private) ---------- */
     private PhotoAdapter(Context ctx, Mode mode,
-                         List<MediaGroupedItem> gridList,
-                         List<Uri> viewerList) {
+            List<MediaGroupedItem> gridList,
+            List<Uri> viewerList) {
 
         this.context = ctx;
         this.mode = mode;
@@ -70,6 +81,7 @@ public class PhotoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         fullH = dm.heightPixels * 2;
     }
 
+    /* ---------- basics ---------- */
     @Override
     public int getItemCount() {
         return mode == Mode.GRID ? grouped.size() : viewerUris.size();
@@ -80,6 +92,7 @@ public class PhotoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         return mode == Mode.GRID ? grouped.get(pos).getType() : TYPE_MEDIA;
     }
 
+    /* ---------- create holders ---------- */
     @NonNull
     @Override
     public RecyclerView.ViewHolder onCreateViewHolder(
@@ -92,9 +105,10 @@ public class PhotoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
                     ? new HeaderHolder(inf.inflate(R.layout.item_header, parent, false))
                     : new GridHolder(inf.inflate(R.layout.item_photo, parent, false));
         }
-        return new ViewerHolder(inf.inflate(R.layout.item_photo_viewer_page, parent, false));
+        return new ViewerHolder(inf.inflate(R.layout.item_photo_viewer_page_enhanced, parent, false));
     }
 
+    /* ---------- bind ---------- */
     @Override
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder h, int pos) {
         if (mode == Mode.GRID) {
@@ -109,9 +123,11 @@ public class PhotoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         }
     }
 
+    /* ===== GRID ===== */
     private void bindGrid(GridHolder holder, MediaItem media, int pos) {
         Uri uri = media.getUri();
 
+        // 700-px thumb into cell
         Glide.with(context)
                 .load(uri)
                 .override(700, 700)
@@ -119,6 +135,7 @@ public class PhotoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
                 .diskCacheStrategy(DiskCacheStrategy.ALL)
                 .into(holder.imageView);
 
+        // Warm-up cache for instant viewer preview
         Glide.with(context)
                 .load(uri)
                 .override(700, 700)
@@ -132,22 +149,61 @@ public class PhotoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         String tn = "media_" + pos;
         ViewCompat.setTransitionName(holder.imageView, tn);
 
+        // Update selection state
+        updateSelectionState(holder, uri);
+
         holder.imageView.setOnClickListener(v -> {
-            if (video) {
-                openVideo(uri);
+            if (isSelectionMode) {
+                // Add visual feedback
+                v.setScaleX(0.95f);
+                v.setScaleY(0.95f);
+                v.animate()
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(100)
+                    .start();
+                
+                toggleSelection(uri, holder);
             } else {
-                openViewer(pos, tn, holder.imageView);
+                if (video) {
+                    openVideo(uri);
+                } else {
+                    openViewer(pos, tn, holder.imageView);
+                }
             }
+        });
+
+        holder.imageView.setOnLongClickListener(v -> {
+            if (!isSelectionMode) {
+                enterSelectionMode();
+                toggleSelection(uri, holder);
+                return true;
+            }
+            return false;
         });
     }
 
+    /* ===== VIEWER ===== */
     private void bindViewer(ViewerHolder vh, Uri uri) {
+
+        // Configure PhotoView to allow vertical swipes to pass through
+        vh.photoView.setMinimumScale(1.0f);
+        vh.photoView.setMaximumScale(3.0f);
+        vh.photoView.setMediumScale(1.5f);
+        
+        // Set up PhotoView to allow parent to handle certain gestures
+        vh.photoView.setOnViewTapListener((view, x, y) -> {
+            // Handle tap events if needed
+        });
+
+        // 1) 700px request (will be instant from cache)
         RequestBuilder<Drawable> thumb = Glide.with(context)
                 .load(uri)
                 .override(700, 700)
                 .dontTransform()
                 .diskCacheStrategy(DiskCacheStrategy.ALL);
 
+        // 2) Full-res with cross-fade & scaling fix
         Glide.with(context)
                 .load(uri)
                 .override(fullW, fullH)
@@ -157,10 +213,13 @@ public class PhotoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
                 .into(new CustomTarget<Drawable>() {
                     @Override
                     public void onResourceReady(@NonNull Drawable res,
-                                                @androidx.annotation.Nullable Transition<? super Drawable> trans) {
+                            @androidx.annotation.Nullable com.bumptech.glide.request.transition.Transition<? super Drawable> trans) {
 
-                        vh.zoomageView.setImageDrawable(res);
-                        vh.zoomageView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+                        vh.photoView.setImageDrawable(res);
+                        // Always reset to minimum scale and fit center
+                        float minScale = vh.photoView.getMinimumScale();
+                        vh.photoView.setScale(minScale, true); // reset any zoom
+                        vh.photoView.setScaleType(ImageView.ScaleType.FIT_CENTER);
                     }
 
                     @Override
@@ -168,6 +227,160 @@ public class PhotoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
                     }
                 });
     }
+
+    /* ---------- Selection functionality ---------- */
+    
+    public interface OnSelectionChangedListener {
+        void onSelectionChanged(List<Uri> selectedItems);
+        void onSelectionModeChanged(boolean isSelectionMode);
+    }
+    
+    public void setOnSelectionChangedListener(OnSelectionChangedListener listener) {
+        this.selectionListener = listener;
+    }
+    
+    private void updateSelectionState(GridHolder holder, Uri uri) {
+        if (selectedItems.contains(uri)) {
+            holder.selectionOverlay.setVisibility(View.VISIBLE);
+            holder.checkIcon.setVisibility(View.VISIBLE);
+
+            // Stronger pop animation for selection
+            holder.selectionOverlay.setAlpha(0f);
+            holder.selectionOverlay.setScaleX(0.85f);
+            holder.selectionOverlay.setScaleY(0.85f);
+            holder.selectionOverlay.animate()
+                    .alpha(1f)
+                    .scaleX(1.08f).scaleY(1.08f)
+                    .setDuration(100)
+                    .withEndAction(() -> holder.selectionOverlay.animate()
+                            .scaleX(1f).scaleY(1f)
+                            .setDuration(80)
+                            .start())
+                    .start();
+
+            holder.checkIcon.setScaleX(0.6f);
+            holder.checkIcon.setScaleY(0.6f);
+            holder.checkIcon.animate()
+                    .scaleX(1.2f).scaleY(1.2f)
+                    .setDuration(120)
+                    .withEndAction(() -> holder.checkIcon.animate()
+                            .scaleX(1f).scaleY(1f)
+                            .setDuration(80)
+                            .start())
+                    .start();
+        } else {
+            // Animate out
+            holder.selectionOverlay.animate()
+                    .alpha(0f)
+                    .scaleX(0.85f).scaleY(0.85f)
+                    .setDuration(120)
+                    .withEndAction(() -> holder.selectionOverlay.setVisibility(View.GONE))
+                    .start();
+            holder.checkIcon.animate()
+                    .scaleX(0.6f).scaleY(0.6f)
+                    .setDuration(120)
+                    .withEndAction(() -> holder.checkIcon.setVisibility(View.GONE))
+                    .start();
+        }
+    }
+    
+    public void selectItem(Uri uri) {
+        if (!selectedItems.contains(uri)) {
+            selectedItems.add(uri);
+            notifyDataSetChanged();
+        }
+    }
+    
+    private void toggleSelection(Uri uri, GridHolder holder) {
+        if (selectedItems.contains(uri)) {
+            selectedItems.remove(uri);
+        } else {
+            selectedItems.add(uri);
+        }
+        updateSelectionState(holder, uri);
+        
+        if (selectionListener != null) {
+            selectionListener.onSelectionChanged(selectedItems);
+        }
+        
+        // Only exit selection mode if the user has deselected all items AND we're already in selection mode
+        // Add a longer delay to prevent accidental exit during rapid selection
+        if (selectedItems.isEmpty() && isSelectionMode) {
+            holder.itemView.postDelayed(() -> {
+                if (selectedItems.isEmpty() && isSelectionMode) {
+                    // Double-check that we're still in selection mode and no items are selected
+                    if (selectedItems.isEmpty() && isSelectionMode) {
+                        exitSelectionMode();
+                    }
+                }
+            }, 300); // Increased delay to 300ms
+        }
+    }
+    
+    public void enterSelectionMode() {
+        isSelectionMode = true;
+        if (selectionListener != null) {
+            selectionListener.onSelectionModeChanged(true);
+        }
+    }
+    
+    private void exitSelectionMode() {
+        isSelectionMode = false;
+        selectedItems.clear();
+        if (selectionListener != null) {
+            selectionListener.onSelectionChanged(selectedItems);
+            selectionListener.onSelectionModeChanged(false);
+        }
+        notifyDataSetChanged();
+    }
+    
+    public List<Uri> getSelectedItems() {
+        return new ArrayList<>(selectedItems);
+    }
+    
+    public void clearSelection() {
+        selectedItems.clear();
+        isSelectionMode = false;
+        if (selectionListener != null) {
+            selectionListener.onSelectionChanged(selectedItems);
+            selectionListener.onSelectionModeChanged(false);
+        }
+        notifyDataSetChanged();
+    }
+    
+    public boolean isSelectionMode() {
+        return isSelectionMode;
+    }
+
+    public void selectItemByPosition(int position) {
+        if (mode != Mode.GRID || position < 0 || position >= grouped.size()) return;
+        MediaGroupedItem item = grouped.get(position);
+        if (item.getType() == TYPE_MEDIA) {
+            Uri uri = item.getMedia().getUri();
+            if (!selectedItems.contains(uri)) {
+                selectedItems.add(uri);
+                notifyItemChanged(position);
+                if (selectionListener != null) selectionListener.onSelectionChanged(selectedItems);
+            }
+        }
+    }
+
+    public void toggleSelectionByPosition(int position) {
+        if (mode != Mode.GRID || position < 0 || position >= grouped.size()) return;
+        MediaGroupedItem item = grouped.get(position);
+        if (item.getType() == TYPE_MEDIA) {
+            Uri uri = item.getMedia().getUri();
+            if (selectedItems.contains(uri)) {
+                selectedItems.remove(uri);
+            } else {
+                selectedItems.add(uri);
+            }
+            notifyItemChanged(position);
+            if (selectionListener != null) selectionListener.onSelectionChanged(selectedItems);
+        }
+    }
+
+    /* ---------- helpers ---------- */
 
     private void openVideo(Uri uri) {
         SharedPreferences p = PreferenceManager.getDefaultSharedPreferences(context);
@@ -216,6 +429,7 @@ public class PhotoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         context.startActivity(it, opts.toBundle());
     }
 
+    /* ---------- span-helper ---------- */
     public GridLayoutManager.SpanSizeLookup spanLookup() {
         if (mode != Mode.GRID)
             return null;
@@ -227,6 +441,7 @@ public class PhotoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         };
     }
 
+    /* ---------- view-holders ---------- */
     static class HeaderHolder extends RecyclerView.ViewHolder {
         TextView headerText;
 
@@ -237,23 +452,25 @@ public class PhotoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
     }
 
     static class GridHolder extends RecyclerView.ViewHolder {
-        ImageView imageView, playIcon;
-        View videoOverlay;
+        ImageView imageView, playIcon, checkIcon;
+        View videoOverlay, selectionOverlay;
 
         GridHolder(@NonNull View v) {
             super(v);
             imageView = v.findViewById(R.id.imageView);
             playIcon = v.findViewById(R.id.playIcon);
             videoOverlay = v.findViewById(R.id.videoOverlay);
+            checkIcon = v.findViewById(R.id.checkIcon);
+            selectionOverlay = v.findViewById(R.id.selectionOverlay);
         }
     }
 
     static class ViewerHolder extends RecyclerView.ViewHolder {
-        ZoomageView zoomageView;
+        EnhancedPhotoView photoView;
 
         ViewerHolder(@NonNull View v) {
             super(v);
-            zoomageView = v.findViewById(R.id.zoomImageView);
+            photoView = v.findViewById(R.id.photoView);
         }
     }
 }

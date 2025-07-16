@@ -19,4 +19,24 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="@android:color/transparent" />
+
+    <!-- Image info overlay (appears on swipe up) -->
+    <include
+        android:id="@+id/imageInfoOverlay"
+        layout="@layout/image_info_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:visibility="gone" />
+
+    <!-- Selection action menu (appears when images are selected) -->
+    <include
+        android:id="@+id/selectionActionMenu"
+        layout="@layout/selection_action_menu"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="32dp"
+        android:visibility="gone" />
+
 </FrameLayout>

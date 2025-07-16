@@ -5,8 +5,6 @@ import android.os.Bundle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
-import java.io.File;
-import java.io.IOException;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -15,7 +13,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        startLogCapture();
         setContentView(R.layout.activity_main);
 
         bottomNav = findViewById(R.id.bottomNav);
@@ -29,15 +26,22 @@ public class MainActivity extends AppCompatActivity {
                     .commit();
         }
     }
-
-    private void startLogCapture() {
-        try {
-            File logFile = new File(getExternalFilesDir(null), "log.txt");
-            Runtime.getRuntime().exec("logcat -c");
-            Runtime.getRuntime().exec(new String[] { "logcat", "-f", logFile.getAbsolutePath(), "*:V" });
-        } catch (IOException ignored) {
+    
+    @Override
+    public void onBackPressed() {
+        // Check if current fragment is PhotosFragment and handle selection mode
+        Fragment currentFragment = getSupportFragmentManager().findFragmentById(R.id.fragment_container);
+        if (currentFragment instanceof PhotosFragment) {
+            PhotosFragment photosFragment = (PhotosFragment) currentFragment;
+            if (photosFragment.isInSelectionMode()) {
+                photosFragment.exitSelectionMode();
+                return;
+            }
         }
+        
+        super.onBackPressed();
     }
+
 
     private final BottomNavigationView.OnItemSelectedListener navListener = item -> {
         Fragment selectedFragment = null;
@@ -88,5 +92,14 @@ public class MainActivity extends AppCompatActivity {
         int currentNightMode = getResources().getConfiguration().uiMode
                 & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
         return currentNightMode == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+    }
+
+    public void refreshGallery() {
+        // Find the current PhotosFragment and refresh it
+        Fragment currentFragment = getSupportFragmentManager().findFragmentById(R.id.fragment_container);
+        if (currentFragment instanceof PhotosFragment) {
+            PhotosFragment photosFragment = (PhotosFragment) currentFragment;
+            photosFragment.loadMedia();
+        }
     }
 }

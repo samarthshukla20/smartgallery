@@ -1,0 +1,48 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="1dp">
+
+    <!-- Image/Video thumbnail -->
+    <ImageView
+        android:id="@+id/imageView"
+        android:layout_width="match_parent"
+        android:layout_height="120dp"
+        android:scaleType="centerCrop" />
+
+    <!-- Black tint overlay for videos -->
+    <View
+        android:id="@+id/videoOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="120dp"
+        android:background="#AA000000"
+        android:visibility="gone"/>
+
+    <!-- Play icon -->
+    <ImageView
+        android:id="@+id/playIcon"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_gravity="center"
+        android:src="@drawable/ic_play_circle"
+        android:visibility="gone" />
+
+    <!-- Selection overlay -->
+    <View
+        android:id="@+id/selectionOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="120dp"
+        android:background="@drawable/bg_selection_overlay"
+        android:visibility="gone" />
+
+    <!-- Check icon for selection -->
+    <ImageView
+        android:id="@+id/checkIcon"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_gravity="top|end"
+        android:layout_margin="8dp"
+        android:src="@drawable/ic_check_circle"
+        android:visibility="gone" />
+
+</FrameLayout>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/nav_photos"
+        android:title="Photos"
+        android:icon="@drawable/ic_photos" />
+
+    <item
+        android:id="@+id/nav_folders"
+        android:title="Folders"
+        android:icon="@drawable/ic_album" />
+
+    <item
+        android:id="@+id/nav_favourites"
+        android:title="Favourites"
+        android:icon="@drawable/ic_heart" />
+
+</menu>

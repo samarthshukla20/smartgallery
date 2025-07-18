@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="filter_selected_blue">#007AFF</color> <!-- iOS-style blue -->
+    <color name="colorPrimary">#007AFF</color> <!-- iOS-style blue -->
+    <color name="colorOnPrimary">#FFFFFF</color>
+    <color name="colorPrimaryVariant">#005FCC</color>
+    <color name="colorSecondary">#339CFF</color>
+    <color name="colorOnSecondary">#FFFFFF</color>
+</resources>

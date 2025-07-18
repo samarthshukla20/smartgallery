@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:background="@drawable/bg_selection_menu"
+    android:padding="8dp"
+    android:layout_margin="16dp"
+    android:elevation="8dp">
+
+    <ImageButton
+        android:id="@+id/btnShare"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:src="@drawable/lucide_share"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Share"
+        android:layout_marginEnd="8dp"
+        android:scaleType="centerInside"
+        android:tint="?attr/colorOnSurface" />
+
+    <ImageButton
+        android:id="@+id/btnDelete"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:src="@drawable/lucide_trash"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Delete"
+        android:layout_marginStart="8dp"
+        android:scaleType="centerInside"
+        android:tint="?attr/colorOnSurface" />
+
+</LinearLayout> 

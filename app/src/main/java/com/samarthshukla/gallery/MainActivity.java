@@ -7,7 +7,7 @@ import androidx.fragment.app.Fragment;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 public class MainActivity extends AppCompatActivity {
-
+//test-push
     private BottomNavigationView bottomNav;
 
     @Override

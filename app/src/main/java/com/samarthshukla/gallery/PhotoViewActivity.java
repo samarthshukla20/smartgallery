@@ -3,16 +3,22 @@ package com.samarthshukla.gallery;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.ObjectAnimator;
+import android.app.AlertDialog;
+import android.content.ContentValues;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.transition.Transition;
 import android.transition.TransitionInflater;
 import android.view.GestureDetector;
+import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewTreeObserver;
 import android.view.Window;
 import android.view.animation.AccelerateDecelerateInterpolator;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -26,8 +32,14 @@ import androidx.viewpager2.widget.ViewPager2;
 import androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback;
 
 import com.github.chrisbanes.photoview.PhotoView;
+import com.google.mlkit.vision.common.InputImage;
+import com.google.mlkit.vision.segmentation.subject.SubjectSegmentation;
+import com.google.mlkit.vision.segmentation.subject.SubjectSegmenter;
+import com.google.mlkit.vision.segmentation.subject.SubjectSegmenterOptions;
 import com.jsibbold.zoomage.ZoomageView;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -40,7 +52,7 @@ public class PhotoViewActivity extends AppCompatActivity {
     private ViewPager2 viewPager;
     private View dimBackground;
     private String transitionName;
-    
+
     // New fields for enhanced functionality
     private LinearLayout imageInfoOverlay;
     private LinearLayout selectionActionMenu;
@@ -69,14 +81,22 @@ public class PhotoViewActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_photo_view);
 
+        // Link the AI Cutout FAB
+        View fabAiCutout = findViewById(R.id.fabAiCutout);
+        if (fabAiCutout != null) {
+            fabAiCutout.setOnClickListener(v -> {
+                performPhotoCutout();
+            });
+        }
+
         viewPager = findViewById(R.id.viewPager);
         dimBackground = findViewById(R.id.dimBackground);
-        
+
         // Initialize new views
         imageInfoOverlay = findViewById(R.id.imageInfoOverlay);
         selectionActionMenu = findViewById(R.id.selectionActionMenu);
         recycleBinManager = new RecycleBinManager(this);
-        
+
         // Initialize overlays
         if (imageInfoOverlay != null) {
             imageInfoOverlay.setVisibility(View.GONE);
@@ -86,9 +106,10 @@ public class PhotoViewActivity extends AppCompatActivity {
         }
 
         /* ───────── Set up adapter & pager ───────── */
-        List<Uri> imageUris = getIntent().getParcelableArrayListExtra(EXTRA_IMAGE_URIS);
-        if (imageUris == null)
+        List<Uri> imageUris = SharedData.currentImageUris;
+        if (imageUris == null) {
             imageUris = new ArrayList<>();
+        }
 
         int startPosition = getIntent().getIntExtra(EXTRA_START_POSITION, 0);
         transitionName = getIntent().getStringExtra("transition_name");
@@ -148,14 +169,14 @@ public class PhotoViewActivity extends AppCompatActivity {
     private void setupGestureHandlersForCurrentPage() {
         int current = viewPager.getCurrentItem();
         RecyclerView recycler = (RecyclerView) viewPager.getChildAt(0);
-        
+
         // Use a delayed approach to ensure ViewHolder is available
         recycler.post(() -> {
             RecyclerView.ViewHolder vh = recycler.findViewHolderForAdapterPosition(current);
-            
+
             if (vh instanceof PhotoAdapter.ViewerHolder) {
                 EnhancedPhotoView pv = ((PhotoAdapter.ViewerHolder) vh).photoView;
-                
+
                 // Set up swipe down listener
                 pv.setOnSwipeDownListener(new EnhancedPhotoView.OnSwipeDownListener() {
                     @Override
@@ -212,7 +233,7 @@ public class PhotoViewActivity extends AppCompatActivity {
             imageInfoOverlay.setVisibility(View.VISIBLE);
             imageInfoOverlay.setTranslationY(-deltaY * 0.8f);
             imageInfoOverlay.setAlpha(progress);
-            
+
             // Update info
             Uri currentUri = getCurrentImageUri();
             if (currentUri != null) {
@@ -257,17 +278,17 @@ public class PhotoViewActivity extends AppCompatActivity {
 
     private void showImageInfo() {
         if (imageInfoOverlay == null) return;
-        
+
         Uri currentUri = getCurrentImageUri();
         if (currentUri != null) {
             MediaInfo mediaInfo = MediaInfo.fromUri(this, currentUri);
             updateImageInfo(mediaInfo);
         }
-        
+
         imageInfoOverlay.setVisibility(View.VISIBLE);
         imageInfoOverlay.setAlpha(0f);
         imageInfoOverlay.setTranslationY(-100f);
-        
+
         imageInfoOverlay.animate()
                 .alpha(1f)
                 .translationY(0f)
@@ -278,7 +299,7 @@ public class PhotoViewActivity extends AppCompatActivity {
 
     private void hideImageInfo() {
         if (imageInfoOverlay == null) return;
-        
+
         imageInfoOverlay.animate()
                 .alpha(0f)
                 .translationY(-100f)
@@ -296,12 +317,12 @@ public class PhotoViewActivity extends AppCompatActivity {
     /* ───────── Helper: update image info display ───────── */
     private void updateImageInfo(MediaInfo mediaInfo) {
         if (imageInfoOverlay == null) return;
-        
+
         TextView tvFileName = imageInfoOverlay.findViewById(R.id.tvFileName);
         TextView tvDate = imageInfoOverlay.findViewById(R.id.tvDate);
         TextView tvTime = imageInfoOverlay.findViewById(R.id.tvTime);
         TextView tvSize = imageInfoOverlay.findViewById(R.id.tvSize);
-        
+
         if (tvFileName != null) tvFileName.setText(mediaInfo.getFileName());
         if (tvDate != null) tvDate.setText(mediaInfo.getFormattedDate());
         if (tvTime != null) tvTime.setText(mediaInfo.getFormattedTime());
@@ -309,8 +330,11 @@ public class PhotoViewActivity extends AppCompatActivity {
     }
 
     /* ───────── Helper: get current image URI ───────── */
+    /* ───────── Helper: get current image URI ───────── */
     public Uri getCurrentImageUri() {
-        List<Uri> imageUris = getIntent().getParcelableArrayListExtra(EXTRA_IMAGE_URIS);
+        // Look in SharedData instead of the Intent!
+        List<Uri> imageUris = SharedData.currentImageUris;
+
         if (imageUris != null && !imageUris.isEmpty()) {
             int currentPosition = viewPager.getCurrentItem();
             if (currentPosition >= 0 && currentPosition < imageUris.size()) {
@@ -329,5 +353,112 @@ public class PhotoViewActivity extends AppCompatActivity {
                         | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                         | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
         );
+    }
+
+    /* ========================================================================================= */
+    /* AI PHOTO CUTOUT FEATURES                                   */
+    /* ========================================================================================= */
+
+    /**
+     * Call this method from your UI (e.g., an "AI Edit" Floating Action Button)
+     * to trigger the cutout process for the currently viewed image.
+     */
+    public void performPhotoCutout() {
+        Uri currentUri = getCurrentImageUri();
+        if (currentUri == null) return;
+
+        try {
+            // Phase A: Prepare the input image
+            InputImage image = InputImage.fromFilePath(this, currentUri);
+
+            // Phase B: Configure the Segmenter
+            SubjectSegmenterOptions options = new SubjectSegmenterOptions.Builder()
+                    .enableForegroundBitmap()
+                    .build();
+            SubjectSegmenter segmenter = SubjectSegmentation.getClient(options);
+
+            // Phase C: Process the image asynchronously
+            Toast.makeText(this, "Processing AI Cutout...", Toast.LENGTH_SHORT).show();
+
+            segmenter.process(image)
+                    .addOnSuccessListener(result -> {
+                        Bitmap foregroundBitmap = result.getForegroundBitmap();
+                        if (foregroundBitmap != null) {
+                            showCutoutResultDialog(foregroundBitmap);
+                        } else {
+                            Toast.makeText(this, "No subject detected.", Toast.LENGTH_SHORT).show();
+                        }
+                    })
+                    .addOnFailureListener(e -> {
+                        Toast.makeText(this, "Cutout failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    });
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Error loading image", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void showCutoutResultDialog(Bitmap cutoutBitmap) {
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_cutout_result, null);
+        ImageView ivPreview = dialogView.findViewById(R.id.ivCutoutPreview);
+        Button btnDiscard = dialogView.findViewById(R.id.btnDiscard);
+        Button btnSave = dialogView.findViewById(R.id.btnSave);
+
+        // --- NEW CODE: Safely scale down the image for the UI preview ---
+        int maxSize = 1024; // Max width or height for the preview
+        float scale = Math.min(((float) maxSize / cutoutBitmap.getWidth()), ((float) maxSize / cutoutBitmap.getHeight()));
+
+        Bitmap previewBitmap;
+        if (scale < 1f) {
+            // Shrink it down so the Canvas can draw it
+            previewBitmap = Bitmap.createScaledBitmap(cutoutBitmap,
+                    (int)(cutoutBitmap.getWidth() * scale),
+                    (int)(cutoutBitmap.getHeight() * scale), true);
+        } else {
+            previewBitmap = cutoutBitmap;
+        }
+
+        // Set the smaller image to the ImageView
+        ivPreview.setImageBitmap(previewBitmap);
+        // ----------------------------------------------------------------
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(dialogView)
+                .setCancelable(false)
+                .create();
+
+        btnDiscard.setOnClickListener(v -> dialog.dismiss());
+
+        btnSave.setOnClickListener(v -> {
+            // We pass the ORIGINAL high-res cutoutBitmap to be saved, not the preview!
+            saveCutoutToGallery(cutoutBitmap);
+            dialog.dismiss();
+        });
+
+        dialog.show();
+    }
+
+    private void saveCutoutToGallery(Bitmap bitmap) {
+        ContentValues values = new ContentValues();
+        values.put(MediaStore.Images.Media.DISPLAY_NAME, "SmartGallery_Cutout_" + System.currentTimeMillis() + ".png");
+        values.put(MediaStore.Images.Media.MIME_TYPE, "image/png");
+        values.put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/SmartGallery");
+
+        Uri uri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+
+        try {
+            if (uri != null) {
+                OutputStream outputStream = getContentResolver().openOutputStream(uri);
+                if (outputStream != null) {
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream);
+                    outputStream.close();
+                    Toast.makeText(this, "Cutout saved successfully!", Toast.LENGTH_SHORT).show();
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Failed to save cutout.", Toast.LENGTH_SHORT).show();
+        }
     }
 }

@@ -25,7 +25,8 @@
         android:requestLegacyExternalStorage="true"
         android:roundIcon="@drawable/icongallery"
         android:supportsRtl="true"
-        android:theme="@style/Theme.GalleryApp">
+        android:theme="@style/Theme.GalleryApp"
+        android:largeHeap="true">
 
         <activity
             android:name=".VideoPlayerActivity"

@@ -19,3 +19,15 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Preserve generic signatures for Gson
+-keepattributes Signature
+-keepattributes *Annotation*
+
+# Prevent R8 from stripping TypeToken
+-keep class com.google.gson.reflect.TypeToken { *; }
+-keep class * extends com.google.gson.reflect.TypeToken
+
+# Preserve your custom model classes used in JSON serialization
+-keep class com.samarthshukla.gallery.MediaItem { *; }
+-keep class com.samarthshukla.gallery.MediaInfo { *; }

@@ -418,8 +418,11 @@ public class PhotoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
             }
         }
 
+        // 1. Store the heavy list in memory safely, just like the GridAdapter
+        SharedData.currentImageUris = imgs;
+
+        // 2. Launch the intent with only the lightweight positioning data
         Intent it = new Intent(context, PhotoViewActivity.class);
-        it.putParcelableArrayListExtra(PhotoViewActivity.EXTRA_IMAGE_URIS, imgs);
         it.putExtra(PhotoViewActivity.EXTRA_START_POSITION, clickIdx);
         it.putExtra("transition_name", transitionName);
 

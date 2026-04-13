@@ -39,4 +39,17 @@
         android:layout_marginBottom="32dp"
         android:visibility="gone" />
 
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        android:id="@+id/fabAiCutout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="24dp"
+        android:layout_marginBottom="48dp"
+        android:contentDescription="AI Cutout"
+        app:backgroundTint="#6200EE"
+        app:tint="@android:color/white"
+        app:srcCompat="@android:drawable/ic_menu_camera" />
+
 </FrameLayout>

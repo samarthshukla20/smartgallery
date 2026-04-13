@@ -55,11 +55,42 @@ public class PhotoGridAdapter extends RecyclerView.Adapter<PhotoGridAdapter.Phot
         ViewCompat.setTransitionName(holder.imageView, transitionName);
 
         holder.imageView.setOnClickListener(v -> {
-            // Launch video or image logic (same as before)
-            Intent intent = new Intent(context, item.isVideo() ? VideoPlayerActivity.class : PhotoViewActivity.class);
-            intent.putExtra("video_uri", uri.toString());
-            intent.setData(uri);
-            context.startActivity(intent);
+
+            if (item.isVideo()) {
+                // Videos usually open standalone
+                Intent intent = new Intent(context, VideoPlayerActivity.class);
+                intent.putExtra("video_uri", uri.toString());
+                intent.setData(uri);
+                context.startActivity(intent);
+            } else {
+                // For Photos, we want swipe functionality.
+                // 1. Extract all URIs from the current grid
+                List<Uri> allUris = new ArrayList<>();
+                for (MediaItem media : mediaItems) {
+                    allUris.add(media.getUri());
+                }
+
+                // 2. Safely store the massive list in memory, not the Intent
+                SharedData.currentImageUris = allUris;
+
+                // 3. Launch the Viewer
+                Intent intent = new Intent(context, PhotoViewActivity.class);
+                // Tell it which photo the user actually clicked
+                intent.putExtra(PhotoViewActivity.EXTRA_START_POSITION, position);
+                intent.putExtra("transition_name", transitionName);
+
+                // Optional: Shared Element Transition for a smooth animation
+                if (context instanceof Activity) {
+                    ActivityOptions options = ActivityOptions.makeSceneTransitionAnimation(
+                            (Activity) context,
+                            holder.imageView,
+                            transitionName
+                    );
+                    context.startActivity(intent, options.toBundle());
+                } else {
+                    context.startActivity(intent);
+                }
+            }
         });
     }
 
